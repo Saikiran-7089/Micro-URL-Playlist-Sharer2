@@ -1,10 +1,15 @@
-import { createPlaylist, getPlaylistByCode } from '../services/playlistService.js';
+import {
+  createPlaylist,
+  getPlaylistByCode,
+  getPlaylistStatsByCode
+} from '../services/playlistService.js';
+import { getBaseUrl, getClientUrl } from '../utils/urlHelper.js';
 
 const isValidUrl = (urlString) => {
   try {
     const url = new URL(urlString);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch (e) {
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
     return false;
   }
 };
@@ -28,7 +33,7 @@ export const createNewPlaylist = async (req, res, next) => {
     }
 
     const { playlist, totalLinks } = await createPlaylist(name.trim(), urls);
-    const clientUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const clientUrl = getClientUrl(req);
 
     res.status(201).json({
       success: true,
@@ -58,9 +63,9 @@ export const getPlaylist = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Playlist not found' });
     }
 
-    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const baseUrl = getBaseUrl(req);
 
-    const formattedLinks = playlistData.links.map(link => ({
+    const formattedLinks = playlistData.links.map((link) => ({
       ...link,
       shortUrl: `${baseUrl}/${link.shortCode}`
     }));
@@ -77,4 +82,42 @@ export const getPlaylist = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const getPlaylistStats = async (req, res, next) => {
+  try {
+    const { playlistCode } = req.params;
+
+    if (!playlistCode) {
+      return res.status(400).json({ success: false, message: 'playlistCode is required' });
+    }
+
+    const statsData = await getPlaylistStatsByCode(playlistCode);
+
+    if (!statsData) {
+      return res.status(404).json({ success: false, message: 'Playlist not found' });
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const formattedUrls = (statsData.urls || []).map((u) => ({
+      ...u,
+      shortUrl: `${baseUrl}/${u.shortCode}`
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...statsData,
+        urls: formattedUrls
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export default {
+  createNewPlaylist,
+  getPlaylist,
+  getPlaylistStats
 };

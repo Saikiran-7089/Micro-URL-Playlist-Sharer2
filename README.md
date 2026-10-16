@@ -18,6 +18,8 @@ The application boasts a robust backend that handles redirect logic, click track
 - Playlist ordering
 - Copy short URL
 - Supabase persistence
+- Redis fast click counting
+- Playlist analytics & aggregate statistics
 - REST API
 - React frontend
 
@@ -34,6 +36,9 @@ Backend:
 - Express.js
 - nanoid
 
+Analytics:
+- Redis (Upstash Redis via `@upstash/redis`)
+
 Database:
 - Supabase
 - PostgreSQL
@@ -45,17 +50,19 @@ Development:
 
 ## Architecture
 
-The system operates on a distinct client-server architecture with seamless database integrations:
+The system operates on a distinct client-server architecture with dual database & analytics tiers:
 
-React Frontend
-      ↓
-Express REST API
-      ↓
-Supabase
-      ↓
-PostgreSQL
+- **Frontend**: React + Vite + Vercel
+- **Backend**: Node.js + Express + Render
+- **Database**: Supabase PostgreSQL
+- **Analytics**: Redis / Upstash
 
-**Redirect Flow:** When a user visits a shortened URL, the request hits the Express REST API. The backend queries Supabase to find the original URL and increments the click counter asynchronously. Finally, it responds with an HTTP 302 redirect to the original destination, smoothly routing the user.
+### Data Strategy: PostgreSQL vs. Redis
+- **PostgreSQL (Persistent Application Data)**: Serves as the primary source of truth, storing core URL records, playlist collections, junction relationships, and persistent baseline click counts.
+- **Redis (Fast Click Analytics & Counters)**: Provides sub-millisecond click increments and instant lookups. Each redirect executes an atomic `INCR` on `url:clicks:<shortCode>`, updating PostgreSQL asynchronously. If Redis counters do not exist for an existing URL, they are automatically initialized from PostgreSQL.
+- **Resilience**: Redis outages never fail URL redirects. The system gracefully falls back to direct PostgreSQL tracking if Redis is unreachable.
+
+**Redirect Flow:** When a user visits a shortened URL, the request hits the Express REST API. The backend queries Supabase to resolve the destination URL, performs a fast atomic increment in Redis (`url:clicks:<shortCode>`), persists the update to PostgreSQL asynchronously, and immediately responds with an HTTP 302 redirect.
 
 ## Database Schema
 
@@ -111,6 +118,13 @@ The database consists of three core tables to manage URLs and Playlists securely
 - **Response**: JSON object with playlist details and ordered links.
 - **Status codes**: 200 OK, 404 Not Found
 
+### Get Playlist Statistics
+- **Method**: GET
+- **Endpoint**: `/api/playlists/:playlistCode/stats`
+- **Purpose**: Retrieves aggregated click counts, URL count, and individual URL statistics using fast Redis counters.
+- **Response**: JSON object with `playlistCode`, `name`, `totalClicks`, `urlCount`, and `urls`.
+- **Status codes**: 200 OK, 400 Bad Request, 404 Not Found
+
 ## Environment Variables
 
 The application relies on environment variables for configuration. Secret keys must never be committed to source control.
@@ -122,6 +136,8 @@ SUPABASE_URL=your_supabase_project_url
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 BASE_URL=http://localhost:5000
 FRONTEND_URL=http://localhost:5173
+REDIS_URL=your_upstash_redis_rest_url
+REDIS_TOKEN=your_upstash_redis_rest_token
 ```
 
 **Frontend (`client/.env`):**

@@ -92,3 +92,38 @@
     }
   }
   ```
+
+## 7. Get Playlist Statistics
+- **GET /api/playlists/:playlistCode/stats**
+- **Purpose**: Retrieves aggregated click metrics and per-URL breakdown using fast Redis counters.
+- **Response**: `200 OK`
+  ```json
+  {
+    "success": true,
+    "data": {
+      "playlistCode": "PL5mPkqz",
+      "name": "Study Links",
+      "totalClicks": 15,
+      "urlCount": 3,
+      "urls": [
+        {
+          "shortCode": "abc123",
+          "originalUrl": "https://youtube.com",
+          "clicks": 8
+        },
+        {
+          "shortCode": "xyz789",
+          "originalUrl": "https://github.com",
+          "clicks": 5
+        },
+        {
+          "shortCode": "def456",
+          "originalUrl": "https://google.com",
+          "clicks": 2
+        }
+      ]
+    }
+  }
+  ```
+- **Status codes**: 200 OK, 400 Bad Request, 404 Not Found
+

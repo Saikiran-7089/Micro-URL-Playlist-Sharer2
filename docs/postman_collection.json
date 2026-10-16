@@ -94,8 +94,21 @@
           "path": ["api", "playlists", "{{playlistCode}}"]
         }
       }
+    },
+    {
+      "name": "Get Playlist Statistics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{BASE_URL}}/api/playlists/{{playlistCode}}/stats",
+          "host": ["{{BASE_URL}}"],
+          "path": ["api", "playlists", "{{playlistCode}}", "stats"]
+        }
+      }
     }
   ],
+
   "variable": [
     {
       "key": "BASE_URL",

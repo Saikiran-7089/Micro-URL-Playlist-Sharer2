@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Plus, Trash2, ExternalLink } from 'lucide-react';
-import { shortenUrl, createPlaylist, getUrlStats } from '../services/api';
+import { shortenUrl, createPlaylist, getUrlStats, getPlaylistStats } from '../services/api';
 
 const Dashboard = () => {
   // URL Shortener State
@@ -21,6 +21,12 @@ const Dashboard = () => {
   const [statsData, setStatsData] = useState(null);
   const [statsError, setStatsError] = useState('');
   const [statsLoading, setStatsLoading] = useState(false);
+
+  // Playlist Analytics State
+  const [playlistStatsInput, setPlaylistStatsInput] = useState('');
+  const [playlistStatsData, setPlaylistStatsData] = useState(null);
+  const [playlistStatsError, setPlaylistStatsError] = useState('');
+  const [playlistStatsLoading, setPlaylistStatsLoading] = useState(false);
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
@@ -103,8 +109,25 @@ const Dashboard = () => {
     }
   };
 
+  const handleGetPlaylistStats = async (e) => {
+    e.preventDefault();
+    setPlaylistStatsError('');
+    setPlaylistStatsLoading(true);
+    setPlaylistStatsData(null);
+    try {
+      const res = await getPlaylistStats(playlistStatsInput.trim());
+      if (res.success) {
+        setPlaylistStatsData(res.data);
+      }
+    } catch (err) {
+      setPlaylistStatsError(err.response?.data?.message || 'Failed to get playlist analytics');
+    } finally {
+      setPlaylistStatsLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
       {/* URL Shortener Card */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Create Short URL</h2>
@@ -148,7 +171,7 @@ const Dashboard = () => {
       </div>
 
       {/* Playlist Creator Card */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 md:row-span-2">
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">Create Playlist</h2>
         <form onSubmit={handleCreatePlaylist} className="space-y-4">
           <div>
@@ -259,7 +282,96 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Playlist Analytics Card */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Playlist Analytics</h2>
+        <form onSubmit={handleGetPlaylistStats} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Enter Playlist Code</label>
+            <input
+              type="text"
+              required
+              value={playlistStatsInput}
+              onChange={(e) => setPlaylistStatsInput(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+              placeholder="e.g. PL5mPkqz"
+            />
+          </div>
+          {playlistStatsError && <p className="text-red-500 text-sm">{playlistStatsError}</p>}
+          <button
+            type="submit"
+            disabled={playlistStatsLoading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {playlistStatsLoading ? 'Loading...' : 'Get Playlist Analytics'}
+          </button>
+        </form>
+
+        {playlistStatsData && (
+          <div className="mt-6 p-4 bg-indigo-50 rounded-md border border-indigo-200 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-indigo-900">{playlistStatsData.name}</h3>
+              <p className="text-xs text-indigo-700 font-mono">Code: {playlistStatsData.playlistCode}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div className="bg-white p-3 rounded shadow-sm border border-indigo-100">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Clicks</p>
+                <p className="text-2xl font-bold text-indigo-600">{playlistStatsData.totalClicks}</p>
+              </div>
+              <div className="bg-white p-3 rounded shadow-sm border border-indigo-100">
+                <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">URLs</p>
+                <p className="text-2xl font-bold text-indigo-600">{playlistStatsData.urlCount}</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto bg-white rounded border border-indigo-100">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                      URL
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                      Short Code
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-right text-xs font-semibold text-gray-600 uppercase">
+                      Clicks
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {playlistStatsData.urls.map((u, idx) => (
+                    <tr key={u.shortCode || idx} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 max-w-[180px] truncate">
+                        <a
+                          href={u.originalUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline flex items-center gap-1"
+                          title={u.originalUrl}
+                        >
+                          <span className="truncate">{u.originalUrl.replace(/^https?:\/\//, '')}</span>
+                          <ExternalLink size={12} className="flex-shrink-0" />
+                        </a>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-gray-700">
+                        {u.shortCode}
+                      </td>
+                      <td className="px-3 py-2 text-right font-semibold text-indigo-700">
+                        {u.clicks}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
+
   );
 };
 

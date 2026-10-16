@@ -44,13 +44,13 @@ export const getUrlByShortCode = async (shortCode) => {
   return data;
 };
 
-export const incrementClickCount = async (id, currentClicks) => {
+export const incrementClickCount = async (id, updatedClicks) => {
   const { error } = await supabase
     .from('urls')
-    .update({ clicks: currentClicks + 1 })
+    .update({ clicks: updatedClicks })
     .eq('id', id);
 
   if (error) {
-    console.error('Error incrementing click count:', error);
+    console.error('Error updating click count in database:', error);
   }
 };
